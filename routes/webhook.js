@@ -3,83 +3,36 @@ import crypto from "crypto";
 
 const router = express.Router();
 
-/**
- * ✅ Verify Paddle signature
- */
-function verifyPaddleSignature(body, signature, publicKey) {
+// Paddle webhook handler
+router.post("/", express.raw({ type: "application/json" }), (req, res) => {
   try {
+    const signature = req.headers["paddle-signature"];
+    const rawBody = req.body.toString("utf8");
+
+    // ✅ Verify Paddle webhook (public key from .env)
     const verifier = crypto.createVerify("sha1");
+    verifier.update(rawBody);
+    const isValid = verifier.verify(process.env.PADDLE_PUBLIC_KEY, signature, "base64");
 
-    // p_signature को छोड़कर बाकी keys sort करो
-    const keys = Object.keys(body)
-      .filter((key) => key !== "p_signature")
-      .sort();
-
-    const sorted = {};
-    keys.forEach((key) => {
-      sorted[key] = body[key];
-    });
-
-    // Serialize sorted object
-    const serialized = JSON.stringify(sorted);
-
-    verifier.update(serialized);
-    return verifier.verify(publicKey, Buffer.from(signature, "base64"));
-  } catch (err) {
-    console.error("Signature verification error:", err);
-    return false;
-  }
-}
-
-/**
- * ✅ Webhook route
- */
-router.post(
-  "/webhook",
-  express.urlencoded({ extended: false }),
-  (req, res) => {
-    const body = req.body;
-    const signature = body.p_signature;
-
-    // Paddle Public Key (env file से लो)
-    const PADDLE_PUBLIC_KEY = process.env.PADDLE_PUBLIC_KEY;
-
-    if (!signature || !verifyPaddleSignature(body, signature, PADDLE_PUBLIC_KEY)) {
-      console.log("❌ Invalid signature");
+    if (!isValid) {
+      console.error("❌ Invalid Paddle signature");
       return res.status(400).send("Invalid signature");
     }
 
-    // ✅ अब events handle करो
-    const event = body.alert_name;
-    console.log("📩 Paddle Webhook Received:", event);
+    const event = JSON.parse(rawBody);
+    console.log("✅ Paddle Event:", event);
 
-    switch (event) {
-      case "subscription_created":
-        console.log("✅ Subscription Created:", body);
-        // 👉 यहाँ user को database में Pro plan दो
-        break;
-
-      case "subscription_cancelled":
-        console.log("⚠️ Subscription Cancelled:", body);
-        // 👉 यहाँ user का plan free कर दो
-        break;
-
-      case "subscription_payment_succeeded":
-        console.log("💰 Payment Success:", body);
-        // 👉 Payment log save करो
-        break;
-
-      case "subscription_payment_failed":
-        console.log("❌ Payment Failed:", body);
-        break;
-
-      default:
-        console.log("ℹ️ Unhandled Event:", event);
+    // Example: handle subscription created
+    if (event.alert_name === "subscription_created") {
+      console.log("New subscription:", event.subscription_id);
+      // TODO: Update user in DB
     }
 
     res.sendStatus(200);
+  } catch (err) {
+    console.error("Webhook error:", err);
+    res.status(500).send("Webhook error");
   }
-);
+});
 
 export default router;
-      
