@@ -1,29 +1,24 @@
 import express from "express";
-import bodyParser from "body-parser";
-import paddleRoutes from "./routes/paddle.js";
+import cors from "cors";
+import dotenv from "dotenv";
+import webhookRoutes from "./routes/webhook.js";
+
+dotenv.config();
 
 const app = express();
 
-// JSON parser for normal routes
-app.use(bodyParser.json());
-
-// Paddle webhook (raw body required for signature verification)
-app.use("/paddle", paddleRoutes);
-
-// Middlewares
+// Middleware
 app.use(cors());
-app.use(bodyParser.json());
+app.use(express.json());
 
-// ✅ Routes
-app.use("/auth", authRoutes);
-app.use("/profiles", profileRoutes);
-app.use("/subscriptions", subscriptionRoutes);
-app.use("/crypto", cryptoRoutes);
+// Routes
+app.use("/paddle", webhookRoutes);
 
 app.get("/", (req, res) => {
-  res.send("WebLogin API is running...");
+  res.send("WebLogin backend is running ✅");
 });
 
+// Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
