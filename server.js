@@ -1,20 +1,14 @@
 import express from "express";
-import dotenv from "dotenv";
-import cors from "cors";
 import bodyParser from "body-parser";
-
-import authRoutes from "./routes/auth.js";
-import profileRoutes from "./routes/profiles.js";
-import subscriptionRoutes from "./routes/subscriptions.js";
-import webhookRoutes from "./routes/webhook.js";
-import cryptoRoutes from "./routes/crypto.js";
-
-dotenv.config();
+import paddleRoutes from "./routes/paddle.js";
 
 const app = express();
 
-// ✅ Paddle webhook (must be first, raw body)
-app.use("/webhook", webhookRoutes);
+// JSON parser for normal routes
+app.use(bodyParser.json());
+
+// Paddle webhook (raw body required for signature verification)
+app.use("/paddle", paddleRoutes);
 
 // Middlewares
 app.use(cors());
